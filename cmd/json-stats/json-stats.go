@@ -253,7 +253,7 @@ func addKVs(path string, obj interface{}, kvs map[string]jsonl.Field) error {
 	default:
 		pathCounts := kvs[path]
 		if pathCounts == nil {
-			pathCounts = &jsonl.NullField{}
+			pathCounts = &jsonl.EmptyField{}
 		}
 
 		pathCounts, err := pathCounts.Add(obj)

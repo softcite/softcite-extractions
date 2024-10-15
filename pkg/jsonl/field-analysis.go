@@ -10,17 +10,24 @@ import (
 // interpret the field as an enum.
 const MaxEnum = 20
 
+// Field represents JSON atomic types: number, boolean, string, and null.
+// Does not support fields which may hold different types
+// (e.g. number and string), but does allow fields which sometimes have null
+// values.
 type Field interface {
 	Add(obj any) (Field, error)
 	String() string
 }
 
-// NullField represents a field which is never filled in.
-// Adding any object to a NullField returns a non-NullField.
-type NullField struct{}
+// EmptyField represents a field which is never filled in.
+// Adding any object to a EmptyField returns a non-EmptyField.
+type EmptyField struct{}
 
-func (nf *NullField) Add(obj any) (Field, error) {
+// Add turns the EmptyField into an appropriate field based on the passed type.
+func (nf *EmptyField) Add(obj any) (Field, error) {
 	switch o := obj.(type) {
+	case nil:
+		return nf, nil
 	case bool:
 		var f Field = &BoolField{}
 		f, err := f.Add(o)
@@ -51,10 +58,12 @@ func (nf *NullField) Add(obj any) (Field, error) {
 	}
 }
 
-func (nf *NullField) String() string {
-	return "null"
+func (nf *EmptyField) String() string {
+	return "empty"
 }
 
+// BoolField indicates the field only ever holds "true" or "false" JSON boolean
+// values.
 type BoolField struct {
 	True  int
 	False int
@@ -62,6 +71,8 @@ type BoolField struct {
 
 func (f *BoolField) Add(obj any) (Field, error) {
 	switch o := obj.(type) {
+	case nil:
+		return f, nil
 	case bool:
 		if o {
 			f.True++
@@ -78,18 +89,31 @@ func (f *BoolField) String() string {
 	return fmt.Sprintf("true:%d;false:%d", f.True, f.False)
 }
 
-type NumberType string
-
+// A NumberField only holds JSON numbers. Keeps track of the properties of the
+// numbers passed in to determine the types of numbers used.
 type NumberField struct {
+	// Integral tracks if all instances of this field are integers.
 	Integral bool
-	Float32  bool
+	// Float32 tracks if all instances of this field can fit in a 32-bit floating
+	// point type. Note that integers greater than about 2^23 cannot fit in
+	// 32-bit floats.
+	Float32 bool
 
+	// Min and Max allow determining whether the number is unsigned, or, for
+	// integers, the smallest type which can hold all seen values.
 	Min, Max float64
-	Seen     map[float64]int
+
+	// Seen tracks the unique numbers passed to this field.
+	// Used for detecting if this is an enumerated field where only a few
+	// unique values are passed.
+	// Stops collecting values after it contains more than MaxEnum entries.
+	Seen map[float64]int
 }
 
 func (f *NumberField) Add(obj any) (Field, error) {
 	switch o := obj.(type) {
+	case nil:
+		return f, nil
 	case float64:
 		if len(f.Seen) > 0 {
 			f.Integral = f.Integral && isIntegral(o)
@@ -139,36 +163,6 @@ func isFloat32(f float64) bool {
 	// it uses none of the float64-specific fraction bits.
 	// Does not handle exponents out of the range of float32.
 	return n == 0
-
-	//if n == 0 {
-	//	return true
-	//}
-	//formatted := strconv.FormatFloat(f, 'f', -1, 64)
-	//decimal := strings.Index(formatted, ".")
-	//if decimal == -1 {
-	//	// The integer is too large to be represented exactly as a float32.
-	//	return false
-	//}
-	//
-	//formatted = formatted[decimal+1:]
-	//if len(formatted) <= DropRight {
-	//	return true
-	//}
-	//
-	//formatted = formatted[:len(formatted)-DropRight]
-	//
-	//// Handle cases where the float is very-precisely recreating  essentially
-	//// a float32.
-	//rightDigit := formatted[len(formatted)-1:]
-	//if rightDigit == "0" || rightDigit == "9" {
-	//	formatted = strings.TrimRight(formatted, rightDigit)
-	//}
-	//
-	//if len(formatted) > 7 {
-	//	fmt.Printf("%s, %b, %b\n", strconv.FormatFloat(f, 'f', -1, 64), math.Float64bits(f), n)
-	//}
-	//
-	//return len(formatted) <= 7
 }
 
 func (f *NumberField) String() string {
@@ -222,12 +216,17 @@ func (f *NumberField) String() string {
 	return result.String()
 }
 
+// A StringField only holds JSON string values.
 type StringField struct {
+	// Seen attempts to determine if the field is actually an enum with a small
+	// number of unique values.
 	Seen map[string]int
 }
 
 func (f *StringField) Add(obj any) (Field, error) {
 	switch o := obj.(type) {
+	case nil:
+		return f, nil
 	case string:
 		if len(f.Seen) <= MaxEnum {
 			f.Seen[o]++
