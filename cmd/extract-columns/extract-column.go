@@ -17,6 +17,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -50,7 +51,7 @@ func runE(_ *cobra.Command, args []string) error {
 	}()
 
 	var reader io.Reader
-	reader, err = toReader(inPath)
+	reader, err = toReader(inPath, args[0])
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func runE(_ *cobra.Command, args []string) error {
 	}
 }
 
-func toReader(inPath string) (*fileio.MultiReader, error) {
+func toReader(inPath, extractType string) (*fileio.MultiReader, error) {
 	stat, err := os.Stat(inPath)
 	if err != nil {
 		return nil, err
@@ -85,6 +86,17 @@ func toReader(inPath string) (*fileio.MultiReader, error) {
 		}
 
 		for _, entry := range entries {
+			if extractType == "software" {
+				if !strings.Contains(entry.Name(), "software") {
+					continue
+				}
+				if entry.Name()[2:] != ".software.jsonl.gz" {
+					continue
+				}
+			} else if strings.Contains(entry.Name(), "software") {
+				continue
+			}
+
 			entryPath := filepath.Join(inPath, entry.Name())
 			inPaths = append(inPaths, entryPath)
 		}
@@ -151,8 +163,8 @@ func extractSoftware(reader io.Reader, outDir string, err error) error {
 				Append(normalizedForm)
 			softwareRecordBuilder.Field(1).(*array.StringBuilder).
 				Append(mention.SoftwareName.WikidataId)
-			softwareRecordBuilder.Field(2).(*array.StringBuilder).
-				Append(mention.SoftwareType)
+			//softwareRecordBuilder.Field(2).(*array.StringBuilder).
+			//	Append(mention.SoftwareType)
 		}
 	}
 
