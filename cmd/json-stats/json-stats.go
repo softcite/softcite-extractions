@@ -2,7 +2,6 @@ package main
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -53,6 +52,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	keyValueSets := make(map[string]jsonl.Field)
 
 	pattern := `[0-9a-f]{2}\.software\.jsonl\.gz`
+	//pattern := `[0-9a-f]{2}\.jsonl\.gz`
 
 	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
@@ -209,10 +209,6 @@ func processJsonFile(p *mpb.Progress, inPath string, keyValueSets map[string]jso
 	lastSeen := 0
 	start := time.Now()
 	for entry, err := range entries.Read() {
-		createdMap = make(map[string]float64)
-		sharedMap = make(map[string]float64)
-		usedMap = make(map[string]float64)
-
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
@@ -220,21 +216,6 @@ func processJsonFile(p *mpb.Progress, inPath string, keyValueSets map[string]jso
 			return err
 		}
 
-		currentDocument = (*entry)["file"].(string)
-
-		if currentDocument == "883eb47b-b85e-4f3f-a7dc-878bdd9b0471.software.json" {
-			s, _ := json.MarshalIndent(entry, "", "  ")
-			f, err := os.Create("out.txt")
-			if err != nil {
-				return err
-			}
-			_, err = f.WriteString(string(s))
-			if err != nil {
-				return err
-			}
-			_ = f.Close()
-			return errors.New("stop")
-		}
 		err = addKVs("", *entry, keyValueSets)
 		if err != nil {
 			uuid := (*entry)["file"].(string)
@@ -254,55 +235,7 @@ func processJsonFile(p *mpb.Progress, inPath string, keyValueSets map[string]jso
 	return nil
 }
 
-var currentDocument string
-var createdMap map[string]float64
-var sharedMap map[string]float64
-var usedMap map[string]float64
-
 func addKVs(path string, obj interface{}, kvs map[string]jsonl.Field) error {
-	if path == ".mentions[]" {
-		softwareName := obj.(map[string]interface{})["software-name"].(map[string]interface{})["normalizedForm"].(string)
-		createdScore := obj.(map[string]interface{})["documentContextAttributes"].(map[string]interface{})["created"].(map[string]interface{})["score"].(float64)
-
-		gotScore, ok := createdMap[softwareName]
-		if !ok {
-			createdMap[softwareName] = createdScore
-		} else {
-			if gotScore != createdScore {
-				fmt.Println(fmt.Errorf("created score mismatch for %q %q: %f != %f", currentDocument, softwareName, gotScore, createdScore))
-				fmt.Println()
-			}
-		}
-	}
-	if path == ".mentions[]" {
-		softwareName := obj.(map[string]interface{})["software-name"].(map[string]interface{})["normalizedForm"].(string)
-		createdScore := obj.(map[string]interface{})["documentContextAttributes"].(map[string]interface{})["shared"].(map[string]interface{})["score"].(float64)
-
-		gotScore, ok := sharedMap[softwareName]
-		if !ok {
-			sharedMap[softwareName] = createdScore
-		} else {
-			if gotScore != createdScore {
-				fmt.Println(fmt.Errorf("shared score mismatch for %q %q: %f != %f", currentDocument, softwareName, gotScore, createdScore))
-				fmt.Println()
-			}
-		}
-	}
-	if path == ".mentions[]" {
-		softwareName := obj.(map[string]interface{})["software-name"].(map[string]interface{})["normalizedForm"].(string)
-		createdScore := obj.(map[string]interface{})["documentContextAttributes"].(map[string]interface{})["used"].(map[string]interface{})["score"].(float64)
-
-		gotScore, ok := usedMap[softwareName]
-		if !ok {
-			usedMap[softwareName] = createdScore
-		} else {
-			if gotScore != createdScore {
-				fmt.Println(fmt.Errorf("used score mismatch for %q %q: %f != %f", currentDocument, softwareName, gotScore, createdScore))
-				fmt.Println()
-			}
-		}
-	}
-
 	switch o := obj.(type) {
 	case []interface{}:
 		for _, v := range o {
