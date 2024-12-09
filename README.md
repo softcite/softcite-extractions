@@ -10,6 +10,5 @@ detected in about 24,000,000 academic papers.
 
 ### Getting the Parquet files
 
-If you want to extract the .parquet tables yourself, or work with the original
-dataset, see [Extracting Tables](EXTRACTING_TABLES.md). Otherwise, you can
-download the tables in a friendlier format from (INSERT LOCATION).
+If you want to extract the .parquet tables yourself, or work with the original dataset, see [Extracting Tables](EXTRACTING_TABLES.md).
+Otherwise, you can download the tables in a friendlier format from (INSERT LOCATION).
