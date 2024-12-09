@@ -33,8 +33,10 @@ var (
 		}},
 	}, nil)
 
-	PagesSchema = arrow.NewSchema([]arrow.Field{
+	PapersSchema = arrow.NewSchema([]arrow.Field{
 		{Name: "uuid", Type: arrow.BinaryTypes.String},
+		{Name: "doi", Type: arrow.BinaryTypes.String},
+		{Name: "year", Type: arrow.PrimitiveTypes.Uint16},
 	}, nil)
 
 	SoftwareSchema = arrow.NewSchema([]arrow.Field{
@@ -50,6 +52,13 @@ var (
 
 	MentionsSchema = arrow.NewSchema([]arrow.Field{
 		{Name: "paperId", Type: arrow.BinaryTypes.String},
+		{Name: "mentionIndex", Type: arrow.PrimitiveTypes.Uint16},
 		{Name: "normalizedForm", Type: arrow.BinaryTypes.String},
+		{Name: "documentContextAttributes.created.value", Type: arrow.FixedWidthTypes.Boolean},
+		{Name: "documentContextAttributes.shared.value", Type: arrow.FixedWidthTypes.Boolean},
+		{Name: "documentContextAttributes.used.value", Type: arrow.FixedWidthTypes.Boolean},
+		{Name: "mentionContextAttributes.created.value", Type: arrow.FixedWidthTypes.Boolean},
+		{Name: "mentionContextAttributes.shared.value", Type: arrow.FixedWidthTypes.Boolean},
+		{Name: "mentionContextAttributes.used.value", Type: arrow.FixedWidthTypes.Boolean},
 	}, nil)
 )

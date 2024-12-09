@@ -15,6 +15,7 @@ import (
 	"github.com/willbeason/bondsmith/jsonio"
 	"github.com/willbeason/software-mentions/pkg/tables"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,11 +94,13 @@ func toReader(inPath, extractType string) (*fileio.MultiReader, error) {
 				if entry.Name()[2:] != ".software.jsonl.gz" {
 					continue
 				}
-			} else if strings.Contains(entry.Name(), "software") {
+			} else if entry.Name()[2:] != ".jsonl.gz" {
 				continue
 			}
 
 			entryPath := filepath.Join(inPath, entry.Name())
+			fmt.Println(entry.Name())
+
 			inPaths = append(inPaths, entryPath)
 		}
 	} else {
@@ -115,6 +118,20 @@ type SoftwareMentions struct {
 type SoftwareMention struct {
 	SoftwareName SoftwareName `json:"software-name"`
 	SoftwareType string       `json:"software-type"`
+
+	DocumentContextAttributes ContextAttributes `json:"documentContextAttributes"`
+	MentionContextAttributes  ContextAttributes `json:"mentionContextAttributes"`
+}
+
+type ContextAttributes struct {
+	Created ScoreValue `json:"created"`
+	Shared  ScoreValue `json:"shared"`
+	Used    ScoreValue `json:"used"`
+}
+
+type ScoreValue struct {
+	Score float32 `json:"score"`
+	Value bool    `json:"value"`
 }
 
 type SoftwareName struct {
@@ -145,13 +162,31 @@ func extractSoftware(reader io.Reader, outDir string, err error) error {
 			break
 		}
 
-		for _, mention := range softwareMention.Mentions {
+		if len(softwareMention.Mentions) > math.MaxUint16 {
+			panic(len(softwareMention.Mentions))
+		}
+
+		for index, mention := range softwareMention.Mentions {
 			normalizedForm := mention.SoftwareName.NormalizedForm
 
 			mentionsRecordBuilder.Field(0).(*array.StringBuilder).
 				Append(softwareMention.File[:36])
-			mentionsRecordBuilder.Field(1).(*array.StringBuilder).
+			mentionsRecordBuilder.Field(1).(*array.Uint16Builder).
+				Append(uint16(index))
+			mentionsRecordBuilder.Field(2).(*array.StringBuilder).
 				Append(normalizedForm)
+			mentionsRecordBuilder.Field(3).(*array.BooleanBuilder).
+				Append(mention.DocumentContextAttributes.Created.Value)
+			mentionsRecordBuilder.Field(4).(*array.BooleanBuilder).
+				Append(mention.DocumentContextAttributes.Shared.Value)
+			mentionsRecordBuilder.Field(5).(*array.BooleanBuilder).
+				Append(mention.DocumentContextAttributes.Used.Value)
+			mentionsRecordBuilder.Field(6).(*array.BooleanBuilder).
+				Append(mention.MentionContextAttributes.Created.Value)
+			mentionsRecordBuilder.Field(7).(*array.BooleanBuilder).
+				Append(mention.MentionContextAttributes.Shared.Value)
+			mentionsRecordBuilder.Field(8).(*array.BooleanBuilder).
+				Append(mention.MentionContextAttributes.Used.Value)
 
 			// We assume software with the same normalizedForm are identical.
 			if seenSoftware[normalizedForm] {
@@ -183,6 +218,7 @@ func extractSoftware(reader io.Reader, outDir string, err error) error {
 
 type Paper struct {
 	File string `json:"file"`
+	Doi  string `json:"doi"`
 	Year uint16 `json:"year"`
 }
 
@@ -191,14 +227,13 @@ func extractPapers(reader io.Reader, outDir string, err error) error {
 		return &Paper{}
 	})
 
-	schema := arrow.NewSchema([]arrow.Field{
-		{Name: "uuid", Type: arrow.BinaryTypes.String},
-		{Name: "year", Type: arrow.PrimitiveTypes.Uint16},
-	}, nil)
-
 	allocator := memory.NewGoAllocator()
-	paperRecordBuilder := array.NewRecordBuilder(allocator, schema)
+	paperRecordBuilder := array.NewRecordBuilder(allocator, tables.PapersSchema)
 	defer paperRecordBuilder.Release()
+
+	uuidBuilder := paperRecordBuilder.Field(0).(*array.StringBuilder)
+	doiBuilder := paperRecordBuilder.Field(1).(*array.StringBuilder)
+	yearBuilder := paperRecordBuilder.Field(2).(*array.Uint16Builder)
 
 	for paper, err := range papers.Read() {
 		if err != nil {
@@ -208,13 +243,12 @@ func extractPapers(reader io.Reader, outDir string, err error) error {
 			break
 		}
 
-		paperRecordBuilder.Field(0).(*array.StringBuilder).
-			Append(paper.File[:36])
-		paperRecordBuilder.Field(1).(*array.Uint16Builder).
-			Append(paper.Year)
+		uuidBuilder.Append(paper.File[:36])
+		doiBuilder.Append(paper.Doi)
+		yearBuilder.Append(paper.Year)
 	}
 
-	return writeRecords(schema, paperRecordBuilder, outDir, tables.Papers)
+	return writeRecords(tables.PapersSchema, paperRecordBuilder, outDir, tables.Papers)
 }
 
 func writeRecords(schema *arrow.Schema, recordBuilder *array.RecordBuilder, outDir, outTable string) error {
