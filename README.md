@@ -1,10 +1,15 @@
 # software-mentions-dataset-analysis
 Analyses of software mentions and dependencies
 
-## The Protos
+## What this dataset is
 
-To regenerate the protocol buffers, run:
+The software-mentions dataset is a collection of ML-identified mentions of software
+detected in about 24,000,000 academic papers.
 
-```shell
-protoc -I=./pkg --go_out=. $(find . -type f -name "*.proto")
-```
+## Getting Started
+
+### Getting the Parquet files
+
+If you want to extract the .parquet tables yourself, or work with the original
+dataset, see [Extracting Tables](EXTRACTING_TABLES.md). Otherwise, you can
+download the tables in a friendlier format from (INSERT LOCATION).
