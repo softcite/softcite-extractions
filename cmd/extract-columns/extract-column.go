@@ -173,7 +173,7 @@ func extractSoftware(reader io.Reader, outDir string, err error) error {
 		return err
 	}
 
-	err = writeRecords(tables.MentionsSchema, mentionsRecordBuilder, outDir, tables.Mentions)
+	err = writeRecords(tables.MentionsSchema, mentionsRecordBuilder, outDir, tables.MentionsName)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func extractPapers(reader io.Reader, outDir string, err error) error {
 			Append(paper.Year)
 	}
 
-	return writeRecords(schema, paperRecordBuilder, outDir, tables.Papers)
+	return writeRecords(schema, paperRecordBuilder, outDir, tables.PapersName)
 }
 
 func writeRecords(schema *arrow.Schema, recordBuilder *array.RecordBuilder, outDir, outTable string) error {

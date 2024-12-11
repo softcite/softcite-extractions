@@ -3,9 +3,7 @@ package tables
 import "github.com/apache/arrow/go/v18/arrow"
 
 const (
-	Papers   = "papers"
 	Software = "software"
-	Mentions = "mentions"
 
 	ParquetExt = ".parquet"
 )
@@ -33,10 +31,6 @@ var (
 		}},
 	}, nil)
 
-	PagesSchema = arrow.NewSchema([]arrow.Field{
-		{Name: "uuid", Type: arrow.BinaryTypes.String},
-	}, nil)
-
 	SoftwareSchema = arrow.NewSchema([]arrow.Field{
 		{Name: "normalizedForm", Type: arrow.BinaryTypes.String},
 		{Name: "wikidataId", Type: arrow.BinaryTypes.String},
@@ -46,10 +40,5 @@ var (
 		//	Ordered:   false,
 		//},
 		//},
-	}, nil)
-
-	MentionsSchema = arrow.NewSchema([]arrow.Field{
-		{Name: "paperId", Type: arrow.BinaryTypes.String},
-		{Name: "normalizedForm", Type: arrow.BinaryTypes.String},
 	}, nil)
 )
