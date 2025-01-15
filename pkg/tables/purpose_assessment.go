@@ -8,12 +8,12 @@ var PurposeAssessment = arrow.NewSchema([]arrow.Field{
 	{Name: softwareMentionId,
 		Type: arrow.BinaryTypes.String,
 		Metadata: NewMetadataBuilder().Add(
-			comment, paperIdComment,
+			comment, softwareMentionIdComment,
 		).Build()},
 	{Name: paperId,
-		Type: arrow.BinaryTypes.String,
+		Type: arrow.PrimitiveTypes.Uint32,
 		Metadata: NewMetadataBuilder().Add(
-			comment, "The UUID of the paper in SoftCite",
+			comment, paperIdComment,
 		).Build()},
 	{Name: sourceFileType,
 		Type: &arrow.DictionaryType{
@@ -50,7 +50,7 @@ var PurposeAssessment = arrow.NewSchema([]arrow.Field{
 			comment,
 			"Whether the assessment is about the software being used, created, or shared in this paper",
 		).Build()},
-	{Name: "certainty",
+	{Name: "certainty_score",
 		Type: arrow.PrimitiveTypes.Float64,
 		Metadata: NewMetadataBuilder().Add(
 			comment,

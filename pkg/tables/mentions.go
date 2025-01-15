@@ -11,21 +11,22 @@ const (
 )
 
 const (
-	sourceFileTypeComment = "The extension of the source file parsed by SoftCite. " +
+	softwareMentionIdComment = "A concatenation of paper_id, source_file_type, and mention_index"
+	sourceFileTypeComment    = "The extension of the source file parsed by SoftCite. " +
 		"There may be more than one source file per paper."
-	mentionIndexComment = "The index of the mention parsed from the source file."
+	mentionIndexComment = "The index of the mention parsed from the source file"
 )
 
 var SoftwareMentions = arrow.NewSchema([]arrow.Field{
 	{Name: softwareMentionId,
 		Type: arrow.BinaryTypes.String,
 		Metadata: NewMetadataBuilder().Add(
-			comment, paperIdComment,
+			comment, softwareMentionIdComment,
 		).Build()},
 	{Name: paperId,
-		Type: arrow.BinaryTypes.String,
+		Type: arrow.PrimitiveTypes.Uint32,
 		Metadata: NewMetadataBuilder().Add(
-			comment, "The UUID of the paper in SoftCite",
+			comment, paperIdComment,
 		).Build()},
 	{Name: sourceFileType,
 		Type: &arrow.DictionaryType{
@@ -100,10 +101,10 @@ var SoftwareMentions = arrow.NewSchema([]arrow.Field{
 			comment, "A normalized string of the a URL for the mentioned software",
 		).Build(),
 		Nullable: true},
-	{Name: "context",
+	{Name: "context_full_text",
 		Type: arrow.BinaryTypes.String,
 		Metadata: NewMetadataBuilder().Add(
-			comment, "The software mention in context",
+			comment, "The software mention as it appears in the full text of the paper",
 		).Build(),
 		Nullable: true},
 }, NewMetadataBuilder().BuildReference())

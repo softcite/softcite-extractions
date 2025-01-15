@@ -8,18 +8,32 @@ const (
 	paperId = "paper_id"
 )
 
-const paperIdComment = "The UUID of the paper in SoftCite"
+const paperIdComment = "A unique identifier for the paper in this dataset"
 
 var Papers = arrow.NewSchema([]arrow.Field{
 	{Name: paperId,
-		Type: arrow.BinaryTypes.String,
+		Type: arrow.PrimitiveTypes.Uint32,
 		Metadata: NewMetadataBuilder().Add(
 			comment, paperIdComment,
-		).Build()},
+		).Build(),
+	},
+	{Name: "softcite_id",
+		Type: arrow.BinaryTypes.String,
+		Metadata: NewMetadataBuilder().Add(
+			comment, "The UUID of the paper in SoftCite",
+		).Build(),
+	},
 	{Name: "title",
 		Type: arrow.BinaryTypes.String,
 		Metadata: NewMetadataBuilder().Add(
 			comment, "The parsed title of the paper",
+		).Build(),
+		Nullable: true,
+	},
+	{Name: "published_year",
+		Type: arrow.PrimitiveTypes.Uint16,
+		Metadata: NewMetadataBuilder().Add(
+			comment, "The parsed publication year of the paper",
 		).Build(),
 		Nullable: true,
 	},

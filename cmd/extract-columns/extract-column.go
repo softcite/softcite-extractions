@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"github.com/apache/arrow/go/v18/arrow"
@@ -18,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -102,7 +104,7 @@ func toReader(inPath, extractType string) (*fileio.MultiReader, error) {
 		switch extractType {
 		case "papers":
 			pattern = paperPattern
-		case "software":
+		case "pdf":
 			pattern = softwarePattern
 		case "latex":
 			pattern = latexPattern
@@ -124,9 +126,6 @@ func toReader(inPath, extractType string) (*fileio.MultiReader, error) {
 			entryPath := filepath.Join(inPath, entry.Name())
 			inPaths = append(inPaths, entryPath)
 			fmt.Println(entry.Name())
-			if len(inPaths) > 4 {
-				break
-			}
 		}
 	} else {
 		inPaths = append(inPaths, inPath)
@@ -186,7 +185,7 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 
 	softwareMentionsFields := softwareMentionsRecordBuilder.Fields()
 	softwareMentionIdField := softwareMentionsFields[0].(*array.StringBuilder)
-	softwareMentionPaperIdField := softwareMentionsFields[1].(*array.StringBuilder)
+	softwareMentionPaperIdField := softwareMentionsFields[1].(*array.Uint32Builder)
 	softwareMentionSourceFileTypeField := softwareMentionsFields[2].(*array.BinaryDictionaryBuilder)
 	softwareMentionIndexField := softwareMentionsFields[3].(*array.Uint16Builder)
 	softwareMentionNameRawField := softwareMentionsFields[4].(*array.StringBuilder)
@@ -206,7 +205,7 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 
 	purposeAssessmentFields := purposeAssessmentRecordBuilder.Fields()
 	purposeAssessmentIdField := purposeAssessmentFields[0].(*array.StringBuilder)
-	purposeAssessmentPaperIdField := purposeAssessmentFields[1].(*array.StringBuilder)
+	purposeAssessmentPaperIdField := purposeAssessmentFields[1].(*array.Uint32Builder)
 	purposeAssessmentSourceFileTypeField := purposeAssessmentFields[2].(*array.BinaryDictionaryBuilder)
 	purposeAssessmentIndexField := purposeAssessmentFields[3].(*array.Uint16Builder)
 	purposeAssessmentScopeField := purposeAssessmentFields[4].(*array.BinaryDictionaryBuilder)
@@ -263,6 +262,46 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 		}
 	}()
 
+	paperIdsPath := filepath.Join(outDir, paperIdsFileName)
+	paperIdsFile, err := os.Open(paperIdsPath)
+	if err != nil {
+		return fmt.Errorf("opening paper ids file: %w", err)
+	}
+	defer func() {
+		err := paperIdsFile.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+
+	paperIdsReader := csv.NewReader(paperIdsFile)
+	paperIdsReader.FieldsPerRecord = 2
+
+	// 1a6eb5f1-b93b-4344-bdfd-d9c0710337a2
+
+	paperIdRecord, err := paperIdsReader.Read()
+	if err != nil {
+		return fmt.Errorf("reading paper ids: %w", err)
+	}
+
+	paperIdMap := make(map[string]uint32)
+	for ; ; paperIdRecord, err = paperIdsReader.Read() {
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		paperId, err := strconv.ParseUint(paperIdRecord[0], 10, 32)
+		if err != nil {
+			return fmt.Errorf("parsing paper id: %w", err)
+		}
+
+		paperIdMap[paperIdRecord[1]] = uint32(paperId)
+	}
+	fmt.Println("finished reading paper ids")
+
 	// Loop
 	i := 0
 	for softwareMention, err := range softwareMentions.Read() {
@@ -296,12 +335,18 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 
 		for i, mention := range softwareMention.Mentions {
 			// Ids
-			paperId := softwareMention.File[:36]
-			softwareMentionId := fmt.Sprintf("%s.%s.%05d", paperId, extractType, i)
+			softciteId := softwareMention.File[:36]
+
+			paperId, found := paperIdMap[softciteId]
+			if !found {
+				fmt.Println("missing paper id for", softciteId)
+			}
+
+			softwareMentionId := fmt.Sprintf("%10d.%s.%05d", paperId, extractType, i)
 
 			// Software Mention
 			softwareMentionIdField.Append(softwareMentionId)
-			softwareMentionPaperIdField.Append(paperId)
+			softwareMentionPaperIdField.Append(uint32(paperId))
 			err = softwareMentionSourceFileTypeField.AppendString(extractType)
 			if err != nil {
 				return fmt.Errorf("appending source file type: %w", err)
@@ -389,7 +434,7 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 
 					//// Purpose Assessment
 					purposeAssessmentIdField.Append(softwareMentionId)
-					purposeAssessmentPaperIdField.Append(paperId)
+					purposeAssessmentPaperIdField.Append(uint32(paperId))
 					err = purposeAssessmentSourceFileTypeField.AppendString(extractType)
 					if err != nil {
 						return fmt.Errorf("appending source file type: %w", err)
@@ -421,6 +466,7 @@ func panicIfEmptyString(s string) {
 type Paper struct {
 	File          string `json:"file"`
 	Title         string `json:"title"`
+	PublishedYear int    `json:"year"`
 	PublishedDate string `json:"published_date"`
 	JournalName   string `json:"journal_name"`
 	PublisherName string `json:"publisher_name"`
@@ -430,6 +476,8 @@ type Paper struct {
 	Genre         string `json:"genre"`
 	LicenseType   string `json:"license_type"`
 }
+
+const paperIdsFileName = "paper_ids.csv"
 
 func extractPapers(reader io.Reader, outDir string) error {
 	papers := jsonio.NewReader(reader, func() *Paper {
@@ -443,16 +491,33 @@ func extractPapers(reader io.Reader, outDir string) error {
 	defer paperRecordBuilder.Release()
 
 	paperFields := paperRecordBuilder.Fields()
-	paperIdField := paperFields[0].(*array.StringBuilder)
-	titleField := paperFields[1].(*array.StringBuilder)
-	publishedDateField := paperFields[2].(*array.Date32Builder)
-	journalNameField := paperFields[3].(*array.StringBuilder)
-	publisherNameField := paperFields[4].(*array.StringBuilder)
-	doiField := paperFields[5].(*array.StringBuilder)
-	pmcidField := paperFields[6].(*array.StringBuilder)
-	pmidField := paperFields[7].(*array.StringBuilder)
-	genreField := paperFields[8].(*array.BinaryDictionaryBuilder)
-	licenseTypeField := paperFields[9].(*array.BinaryDictionaryBuilder)
+	paperIdField := paperFields[0].(*array.Uint32Builder)
+	softciteIdField := paperFields[1].(*array.StringBuilder)
+	titleField := paperFields[2].(*array.StringBuilder)
+	yearField := paperFields[3].(*array.Uint16Builder)
+	publishedDateField := paperFields[4].(*array.Date32Builder)
+	journalNameField := paperFields[5].(*array.StringBuilder)
+	publisherNameField := paperFields[6].(*array.StringBuilder)
+	doiField := paperFields[7].(*array.StringBuilder)
+	pmcidField := paperFields[8].(*array.StringBuilder)
+	pmidField := paperFields[9].(*array.StringBuilder)
+	genreField := paperFields[10].(*array.BinaryDictionaryBuilder)
+	licenseTypeField := paperFields[11].(*array.BinaryDictionaryBuilder)
+
+	paperId := uint32(0)
+
+	paperIdsPath := filepath.Join(outDir, paperIdsFileName)
+	paperIdsFile, err := os.Create(paperIdsPath)
+	if err != nil {
+		return fmt.Errorf("creating paper ids file: %w", err)
+	}
+	defer func() {
+		err := paperIdsFile.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+	paperIdsWriter := csv.NewWriter(paperIdsFile)
 
 	for paper, err := range papers.Read() {
 		if err != nil {
@@ -462,12 +527,27 @@ func extractPapers(reader io.Reader, outDir string) error {
 			break
 		}
 
-		paperIdField.Append(paper.File[:36])
+		paperId++
+		paperIdField.Append(paperId)
+
+		softciteId := paper.File[:36]
+		softciteIdField.Append(softciteId)
+
+		err = paperIdsWriter.Write([]string{fmt.Sprint(paperId), softciteId})
+		if err != nil {
+			return fmt.Errorf("writing paper id: %w", err)
+		}
 
 		if paper.Title == "" {
 			titleField.AppendNull()
 		} else {
 			titleField.Append(paper.Title)
+		}
+
+		if paper.PublishedYear == 0 {
+			yearField.AppendNull()
+		} else {
+			yearField.Append(uint16(paper.PublishedYear))
 		}
 
 		if paper.PublishedDate == "" {
@@ -523,6 +603,11 @@ func extractPapers(reader io.Reader, outDir string) error {
 				return err
 			}
 		}
+	}
+
+	paperIdsWriter.Flush()
+	if paperIdsWriter.Error() != nil {
+		return fmt.Errorf("flushing paper ids: %w", paperIdsWriter.Error())
 	}
 
 	return writeRecords(schema, paperRecordBuilder, outDir, tables.PapersName)
