@@ -54,21 +54,21 @@ func runE(_ *cobra.Command, args []string) error {
 		}
 	}()
 
-	var reader io.Reader
-	reader, err = toReader(inPath, extractType)
+	statusBar, err := toReader(inPath, extractType)
 	if err != nil {
 		return fmt.Errorf("creating reader: %w", err)
 	}
 
 	// gzip correctly handles concatenated files.
-	reader, err = gzip.NewReader(reader)
+	var reader io.Reader
+	reader, err = gzip.NewReader(statusBar)
 	if err != nil {
 		return fmt.Errorf("creating gzip reader: %w", err)
 	}
 
 	switch extractType {
 	case "papers":
-		return extractPapers(reader, outDir)
+		return extractPapers(statusBar, reader, outDir)
 	default:
 		err := extractMentions(reader, extractType, outDir)
 		if err != nil {
@@ -79,15 +79,15 @@ func runE(_ *cobra.Command, args []string) error {
 }
 
 var (
-	paperPattern    = regexp.MustCompile(`[0-9a-f]{2}\.jsonl.gz`)
-	softwarePattern = regexp.MustCompile(`[0-9a-f]{2}\.software\.jsonl\.gz`)
-	latexPattern    = regexp.MustCompile(`[0-9a-f]{2}\.latex\.tei\.software\.jsonl\.gz`)
-	jatsPattern     = regexp.MustCompile(`[0-9a-f]{2}\.jats\.software\.jsonl\.gz`)
-	grobidPattern   = regexp.MustCompile(`[0-9a-f]{2}\.grobid\.tei\.software\.jsonl\.gz`)
-	pub2teiPattern  = regexp.MustCompile(`[0-9a-f]{2}\.pub2tei\.tei\.jsonl\.gz`)
+	paperPattern   = regexp.MustCompile(`[0-9a-f]{2}\.jsonl.gz`)
+	pdfPattern     = regexp.MustCompile(`[0-9a-f]{2}\.software\.jsonl\.gz`)
+	latexPattern   = regexp.MustCompile(`[0-9a-f]{2}\.latex\.tei\.software\.jsonl\.gz`)
+	jatsPattern    = regexp.MustCompile(`[0-9a-f]{2}\.jats\.software\.jsonl\.gz`)
+	grobidPattern  = regexp.MustCompile(`[0-9a-f]{2}\.grobid\.tei\.software\.jsonl\.gz`)
+	pub2teiPattern = regexp.MustCompile(`[0-9a-f]{2}\.pub2tei\.tei\.jsonl\.gz`)
 )
 
-func toReader(inPath, extractType string) (*fileio.MultiReader, error) {
+func toReader(inPath, extractType string) (*fileio.StatusBarMultiReader, error) {
 	stat, err := os.Stat(inPath)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func toReader(inPath, extractType string) (*fileio.MultiReader, error) {
 		case "papers":
 			pattern = paperPattern
 		case "pdf":
-			pattern = softwarePattern
+			pattern = pdfPattern
 		case "latex":
 			pattern = latexPattern
 		case "jats":
@@ -125,14 +125,16 @@ func toReader(inPath, extractType string) (*fileio.MultiReader, error) {
 
 			entryPath := filepath.Join(inPath, entry.Name())
 			inPaths = append(inPaths, entryPath)
-			fmt.Println(entry.Name())
 		}
 	} else {
 		inPaths = append(inPaths, inPath)
 	}
 
-	fmt.Println(len(inPaths))
-	return fileio.NewMultiFileReader(inPaths), nil
+	r, err := fileio.NewStatusBarMultiReader(inPaths)
+	if err != nil {
+		return nil, fmt.Errorf("creating status bar multi reader: %w", err)
+	}
+	return r, nil
 }
 
 type SoftwareMentions struct {
@@ -479,7 +481,7 @@ type Paper struct {
 
 const paperIdsFileName = "paper_ids.csv"
 
-func extractPapers(reader io.Reader, outDir string) error {
+func extractPapers(statusBar *fileio.StatusBarMultiReader, reader io.Reader, outDir string) error {
 	papers := jsonio.NewReader(reader, func() *Paper {
 		return &Paper{}
 	})
@@ -519,7 +521,14 @@ func extractPapers(reader io.Reader, outDir string) error {
 	}()
 	paperIdsWriter := csv.NewWriter(paperIdsFile)
 
+	i := 0
+
 	for paper, err := range papers.Read() {
+		i++
+		if i%10000 == 0 {
+			statusBar.UpdateStatusBar()
+		}
+
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
 				return err
