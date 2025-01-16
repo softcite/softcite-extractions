@@ -12,9 +12,13 @@ import (
 	"github.com/apache/arrow/go/v18/parquet/compress"
 	"github.com/apache/arrow/go/v18/parquet/pqarrow"
 	"github.com/spf13/cobra"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
 	"github.com/willbeason/bondsmith/fileio"
 	"github.com/willbeason/bondsmith/jsonio"
+	"github.com/willbeason/bondsmith/statusbar"
 	"github.com/willbeason/software-mentions/pkg/tables"
+	"golang.org/x/crypto/ssh/terminal"
 	"io"
 	"os"
 	"path/filepath"
@@ -54,21 +58,44 @@ func runE(_ *cobra.Command, args []string) error {
 		}
 	}()
 
-	statusBar, err := toReader(inPath, extractType)
+	reader, totalSize, err := toReader(inPath, extractType)
 	if err != nil {
 		return fmt.Errorf("creating reader: %w", err)
 	}
 
 	// gzip correctly handles concatenated files.
-	var reader io.Reader
-	reader, err = gzip.NewReader(statusBar)
+	gzipReader, err := gzip.NewReader(reader)
 	if err != nil {
 		return fmt.Errorf("creating gzip reader: %w", err)
 	}
 
+	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		return fmt.Errorf("getting terminal size: %w", err)
+	}
+
+	p := mpb.New(mpb.WithWidth(width))
+	bar := p.AddBar(totalSize,
+		mpb.BarRemoveOnComplete(),
+		mpb.PrependDecorators(
+			decor.CountersKibiByte("% .2f / % .2f"),
+		),
+		mpb.AppendDecorators(
+			decor.AverageETA(decor.ET_STYLE_HHMMSS),
+		))
+	autoUpdater := statusbar.NewAutoUpdater(statusbar.NewUpdater(bar, func() int {
+		return int(reader.BytesRead())
+	}))
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	go func() {
+		autoUpdater.Tick(ticker.C)
+	}()
+	defer ticker.Stop()
+
 	switch extractType {
 	case "papers":
-		return extractPapers(statusBar, reader, outDir)
+		return extractPapers(gzipReader, outDir)
 	default:
 		err := extractMentions(reader, extractType, outDir)
 		if err != nil {
@@ -87,17 +114,17 @@ var (
 	pub2teiPattern = regexp.MustCompile(`[0-9a-f]{2}\.pub2tei\.tei\.jsonl\.gz`)
 )
 
-func toReader(inPath, extractType string) (*fileio.StatusBarMultiReader, error) {
+func toReader(inPath, extractType string) (*fileio.BytesReadReader, int64, error) {
 	stat, err := os.Stat(inPath)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var inPaths []string
 	if stat.IsDir() {
 		entries, err := os.ReadDir(inPath)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		var pattern *regexp.Regexp
@@ -115,7 +142,7 @@ func toReader(inPath, extractType string) (*fileio.StatusBarMultiReader, error) 
 		case "pub2tei":
 			pattern = pub2teiPattern
 		default:
-			return nil, fmt.Errorf("must be one of [papers|software|latex|jats|grobid|pub2tei], not %s", extractType)
+			return nil, 0, fmt.Errorf("must be one of [papers|software|latex|jats|grobid|pub2tei], not %s", extractType)
 		}
 
 		for _, entry := range entries {
@@ -130,11 +157,14 @@ func toReader(inPath, extractType string) (*fileio.StatusBarMultiReader, error) 
 		inPaths = append(inPaths, inPath)
 	}
 
-	r, err := fileio.NewStatusBarMultiReader(inPaths)
+	r := fileio.NewBytesReadReader(fileio.NewMultiReader(inPaths))
+
+	totalSize, err := fileio.CalculateSizes(inPaths)
 	if err != nil {
-		return nil, fmt.Errorf("creating status bar multi reader: %w", err)
+		return nil, 0, fmt.Errorf("calculating file sizes: %w", err)
 	}
-	return r, nil
+
+	return r, totalSize, nil
 }
 
 type SoftwareMentions struct {
@@ -481,7 +511,7 @@ type Paper struct {
 
 const paperIdsFileName = "paper_ids.csv"
 
-func extractPapers(statusBar *fileio.StatusBarMultiReader, reader io.Reader, outDir string) error {
+func extractPapers(reader io.Reader, outDir string) error {
 	papers := jsonio.NewReader(reader, func() *Paper {
 		return &Paper{}
 	})
@@ -506,8 +536,6 @@ func extractPapers(statusBar *fileio.StatusBarMultiReader, reader io.Reader, out
 	genreField := paperFields[10].(*array.BinaryDictionaryBuilder)
 	licenseTypeField := paperFields[11].(*array.BinaryDictionaryBuilder)
 
-	paperId := uint32(0)
-
 	paperIdsPath := filepath.Join(outDir, paperIdsFileName)
 	paperIdsFile, err := os.Create(paperIdsPath)
 	if err != nil {
@@ -521,14 +549,8 @@ func extractPapers(statusBar *fileio.StatusBarMultiReader, reader io.Reader, out
 	}()
 	paperIdsWriter := csv.NewWriter(paperIdsFile)
 
-	i := 0
-
+	paperId := uint32(0)
 	for paper, err := range papers.Read() {
-		i++
-		if i%10000 == 0 {
-			statusBar.UpdateStatusBar()
-		}
-
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
 				return err

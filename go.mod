@@ -3,19 +3,19 @@ module github.com/willbeason/software-mentions
 go 1.23.1
 
 require (
+	github.com/VividCortex/ewma v1.2.0
 	github.com/apache/arrow/go/v18 v18.0.0-20241007013041-ab95a4d25142
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.8.1
 	github.com/vbauerster/mpb v3.4.0+incompatible
-	github.com/willbeason/bondsmith v0.1.6
+	github.com/willbeason/bondsmith v0.1.7-0.20250116201556-2d1c0565a3c0
 	golang.org/x/crypto v0.32.0
 	google.golang.org/protobuf v1.36.3
 )
 
 require (
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
-	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/apache/thrift v0.21.0 // indirect
 	github.com/goccy/go-json v0.10.4 // indirect
