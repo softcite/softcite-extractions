@@ -2,13 +2,11 @@ package tables
 
 import "github.com/apache/arrow/go/v18/arrow"
 
-const PapersName = "papers"
-
 const (
-	paperId = "paper_id"
+	PapersName     = "papers"
+	paperId        = "paper_id"
+	paperIdComment = "A unique identifier for the paper in this dataset"
 )
-
-const paperIdComment = "A unique identifier for the paper in this dataset"
 
 var Papers = arrow.NewSchema([]arrow.Field{
 	{Name: paperId,
@@ -95,6 +93,12 @@ var Papers = arrow.NewSchema([]arrow.Field{
 			comment, "A normalized string of the license under which the paper was published",
 		).Build(),
 		Nullable: true,
+	},
+	{Name: "has_mentions",
+		Type: arrow.FixedWidthTypes.Boolean,
+		Metadata: NewMetadataBuilder().Add(
+			comment, "Whether any mentions exist for this paper",
+		).Build(),
 	},
 }, NewMetadataBuilder().Add(
 	comment, "Papers from the SoftCite dataset",

@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.8.1
 	github.com/vbauerster/mpb v3.4.0+incompatible
-	github.com/willbeason/bondsmith v0.1.7-0.20250116201556-2d1c0565a3c0
+	github.com/willbeason/bondsmith v0.1.7-0.20250117194129-35625790a33b
 	golang.org/x/crypto v0.32.0
 	google.golang.org/protobuf v1.36.3
 )

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"compress/gzip"
 	"encoding/csv"
 	"errors"
@@ -58,7 +59,7 @@ func runE(_ *cobra.Command, args []string) error {
 		}
 	}()
 
-	reader, totalSize, err := toReader(inPath, extractType)
+	mr, reader, totalSize, err := toReader(inPath, extractType)
 	if err != nil {
 		return fmt.Errorf("creating reader: %w", err)
 	}
@@ -97,16 +98,16 @@ func runE(_ *cobra.Command, args []string) error {
 	case "papers":
 		return extractPapers(gzipReader, outDir)
 	default:
-		err := extractMentions(reader, extractType, outDir)
+		err := extractMentions(gzipReader, extractType, outDir)
 		if err != nil {
-			return fmt.Errorf("extracting %s mentions: %w", extractType, err)
+			return fmt.Errorf("extracting %s mentions from %q: %w", extractType, mr.CurFilepath(), err)
 		}
 		return nil
 	}
 }
 
 var (
-	paperPattern   = regexp.MustCompile(`[0-9a-f]{2}\.jsonl.gz`)
+	paperPattern   = regexp.MustCompile(`([0-9a-f]{2}|gg)\.jsonl.gz`)
 	pdfPattern     = regexp.MustCompile(`[0-9a-f]{2}\.software\.jsonl\.gz`)
 	latexPattern   = regexp.MustCompile(`[0-9a-f]{2}\.latex\.tei\.software\.jsonl\.gz`)
 	jatsPattern    = regexp.MustCompile(`[0-9a-f]{2}\.jats\.software\.jsonl\.gz`)
@@ -114,17 +115,17 @@ var (
 	pub2teiPattern = regexp.MustCompile(`[0-9a-f]{2}\.pub2tei\.tei\.jsonl\.gz`)
 )
 
-func toReader(inPath, extractType string) (*fileio.BytesReadReader, int64, error) {
+func toReader(inPath, extractType string) (*fileio.MultiReader, *fileio.BytesReadReader, int64, error) {
 	stat, err := os.Stat(inPath)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 
 	var inPaths []string
 	if stat.IsDir() {
 		entries, err := os.ReadDir(inPath)
 		if err != nil {
-			return nil, 0, err
+			return nil, nil, 0, err
 		}
 
 		var pattern *regexp.Regexp
@@ -142,7 +143,7 @@ func toReader(inPath, extractType string) (*fileio.BytesReadReader, int64, error
 		case "pub2tei":
 			pattern = pub2teiPattern
 		default:
-			return nil, 0, fmt.Errorf("must be one of [papers|software|latex|jats|grobid|pub2tei], not %s", extractType)
+			return nil, nil, 0, fmt.Errorf("must be one of [papers|pdf|latex|jats|grobid|pub2tei], not %s", extractType)
 		}
 
 		for _, entry := range entries {
@@ -157,14 +158,15 @@ func toReader(inPath, extractType string) (*fileio.BytesReadReader, int64, error
 		inPaths = append(inPaths, inPath)
 	}
 
-	r := fileio.NewBytesReadReader(fileio.NewMultiReader(inPaths))
+	mr := fileio.NewMultiReader(inPaths)
+	r := fileio.NewBytesReadReader(mr)
 
 	totalSize, err := fileio.CalculateSizes(inPaths)
 	if err != nil {
-		return nil, 0, fmt.Errorf("calculating file sizes: %w", err)
+		return nil, nil, 0, fmt.Errorf("calculating file sizes: %w", err)
 	}
 
-	return r, totalSize, nil
+	return mr, r, totalSize, nil
 }
 
 type SoftwareMentions struct {
@@ -309,20 +311,13 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 	paperIdsReader := csv.NewReader(paperIdsFile)
 	paperIdsReader.FieldsPerRecord = 2
 
-	// 1a6eb5f1-b93b-4344-bdfd-d9c0710337a2
-
-	paperIdRecord, err := paperIdsReader.Read()
-	if err != nil {
-		return fmt.Errorf("reading paper ids: %w", err)
-	}
-
 	paperIdMap := make(map[string]uint32)
-	for ; ; paperIdRecord, err = paperIdsReader.Read() {
+	for paperIdRecord, err := paperIdsReader.Read(); ; paperIdRecord, err = paperIdsReader.Read() {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return err
+			return fmt.Errorf("reading paper ids: %w", err)
 		}
 
 		paperId, err := strconv.ParseUint(paperIdRecord[0], 10, 32)
@@ -334,13 +329,17 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 	}
 	fmt.Println("finished reading paper ids")
 
+	hasMentionsPath := filepath.Join(outDir, hasMentionsFileName)
+	hasMentionsFile, err := os.Create(hasMentionsPath)
+	if err != nil {
+		return fmt.Errorf("creating has mentions file: %w", err)
+	}
+	defer hasMentionsFile.Close()
+
 	// Loop
 	i := 0
 	for softwareMention, err := range softwareMentions.Read() {
 		i++
-		//if i > 1000 {
-		//	break
-		//}
 
 		if i%100000 == 0 || errors.Is(err, io.EOF) {
 			mentionRecord := softwareMentionsRecordBuilder.NewRecord()
@@ -358,21 +357,35 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 			purposeRecord.Release()
 		}
 
-		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				return fmt.Errorf("reading software mentions: %w", err)
-			}
+		if errors.Is(err, io.EOF) {
 			break
+		} else if err != nil {
+			return fmt.Errorf("reading software mentions: %w", err)
+		}
+
+		// Ids
+		softciteId := softwareMention.File[:36]
+
+		//switch softciteId {
+		//case "1a6eb5f1-b93b-4344-bdfd-d9c0710337a2",
+		//	"fdc95334-4cf4-4925-b67e-aa09de3a29d6":
+		//	// Paper metadata for IDs is known to be missing from the original dataset.
+		//	continue
+		//}
+
+		if len(softwareMention.Mentions) > 0 {
+			_, err = hasMentionsFile.WriteString(softciteId + "\n")
+			if err != nil {
+				return fmt.Errorf("writing to has mentions file: %w", err)
+			}
+		}
+
+		paperId, found := paperIdMap[softciteId]
+		if !found {
+			return fmt.Errorf("missing paper id for %q", softciteId)
 		}
 
 		for i, mention := range softwareMention.Mentions {
-			// Ids
-			softciteId := softwareMention.File[:36]
-
-			paperId, found := paperIdMap[softciteId]
-			if !found {
-				fmt.Println("missing paper id for", softciteId)
-			}
 
 			softwareMentionId := fmt.Sprintf("%10d.%s.%05d", paperId, extractType, i)
 
@@ -496,6 +509,7 @@ func panicIfEmptyString(s string) {
 }
 
 type Paper struct {
+	ID            string `json:"id"`
 	File          string `json:"file"`
 	Title         string `json:"title"`
 	PublishedYear int    `json:"year"`
@@ -509,7 +523,10 @@ type Paper struct {
 	LicenseType   string `json:"license_type"`
 }
 
-const paperIdsFileName = "paper_ids.csv"
+const (
+	paperIdsFileName    = "paper_ids.csv"
+	hasMentionsFileName = "has_mentions.csv"
+)
 
 func extractPapers(reader io.Reader, outDir string) error {
 	papers := jsonio.NewReader(reader, func() *Paper {
@@ -535,6 +552,30 @@ func extractPapers(reader io.Reader, outDir string) error {
 	pmidField := paperFields[9].(*array.StringBuilder)
 	genreField := paperFields[10].(*array.BinaryDictionaryBuilder)
 	licenseTypeField := paperFields[11].(*array.BinaryDictionaryBuilder)
+	hasMentionsField := paperFields[12].(*array.BooleanBuilder)
+
+	hasMentionsPath := filepath.Join(outDir, hasMentionsFileName)
+	var hasMentionsMap map[string]struct{}
+	hasMentionsFile, err := os.Open(hasMentionsPath)
+	if errors.Is(err, os.ErrNotExist) {
+		// Do nothing as
+	} else if err != nil {
+		return fmt.Errorf("creating has mentions file: %w", err)
+	} else {
+		hasMentionsReader := bufio.NewScanner(hasMentionsFile)
+		hasMentionsMap = make(map[string]struct{})
+
+		for hasMentionsReader.Scan() {
+			line := hasMentionsReader.Text()
+			if hasMentionsReader.Err() != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				return fmt.Errorf("reading has mentions: %w", err)
+			}
+			hasMentionsMap[line] = struct{}{}
+		}
+	}
 
 	paperIdsPath := filepath.Join(outDir, paperIdsFileName)
 	paperIdsFile, err := os.Create(paperIdsPath)
@@ -561,7 +602,10 @@ func extractPapers(reader io.Reader, outDir string) error {
 		paperId++
 		paperIdField.Append(paperId)
 
-		softciteId := paper.File[:36]
+		softciteId := paper.ID
+		if len(softciteId) != 36 {
+			panic(softciteId)
+		}
 		softciteIdField.Append(softciteId)
 
 		err = paperIdsWriter.Write([]string{fmt.Sprint(paperId), softciteId})
@@ -633,6 +677,12 @@ func extractPapers(reader io.Reader, outDir string) error {
 			if err != nil {
 				return err
 			}
+		}
+
+		if _, exists := hasMentionsMap[softciteId]; exists {
+			hasMentionsField.Append(true)
+		} else {
+			hasMentionsField.Append(false)
 		}
 	}
 
