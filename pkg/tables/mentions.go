@@ -23,7 +23,7 @@ var SoftwareMentions = arrow.NewSchema([]arrow.Field{
 		Metadata: NewMetadataBuilder().Add(
 			comment, softwareMentionIdComment,
 		).Build()},
-	{Name: paperId,
+	{Name: PaperIdFieldName,
 		Type: arrow.PrimitiveTypes.Uint32,
 		Metadata: NewMetadataBuilder().Add(
 			comment, paperIdComment,

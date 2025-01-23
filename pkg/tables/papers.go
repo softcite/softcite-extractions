@@ -3,13 +3,14 @@ package tables
 import "github.com/apache/arrow/go/v18/arrow"
 
 const (
-	PapersName     = "papers"
-	paperId        = "paper_id"
-	paperIdComment = "A unique identifier for the paper in this dataset"
+	PapersName           = "papers"
+	PaperIdFieldName     = "paper_id"
+	HasMentionsFieldName = "has_mentions"
+	paperIdComment       = "A unique identifier for the paper in this dataset"
 )
 
 var Papers = arrow.NewSchema([]arrow.Field{
-	{Name: paperId,
+	{Name: PaperIdFieldName,
 		Type: arrow.PrimitiveTypes.Uint32,
 		Metadata: NewMetadataBuilder().Add(
 			comment, paperIdComment,
@@ -94,7 +95,7 @@ var Papers = arrow.NewSchema([]arrow.Field{
 		).Build(),
 		Nullable: true,
 	},
-	{Name: "has_mentions",
+	{Name: HasMentionsFieldName,
 		Type: arrow.FixedWidthTypes.Boolean,
 		Metadata: NewMetadataBuilder().Add(
 			comment, "Whether any mentions exist for this paper",
