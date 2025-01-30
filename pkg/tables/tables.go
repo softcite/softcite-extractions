@@ -3,9 +3,7 @@ package tables
 import "github.com/apache/arrow/go/v18/arrow"
 
 const (
-	Papers   = "papers"
 	Software = "software"
-	Mentions = "mentions"
 
 	ParquetExt = ".parquet"
 )

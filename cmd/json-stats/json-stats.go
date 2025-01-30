@@ -7,10 +7,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
-	bondsmith "github.com/willbeason/bondsmith"
+	"github.com/willbeason/bondsmith"
 	"github.com/willbeason/bondsmith/jsonio"
 	"github.com/willbeason/software-mentions/pkg/jsonl"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"io"
 	"os"
 	"path/filepath"
@@ -54,7 +54,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	pattern := `[0-9a-f]{2}\.software\.jsonl\.gz`
 	//pattern := `[0-9a-f]{2}\.jsonl\.gz`
 
-	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return fmt.Errorf("%w: getting terminal size: %w", ErrJsonStats, err)
 	}
@@ -105,6 +105,9 @@ func runE(cmd *cobra.Command, args []string) error {
 			continue
 		}
 		_, err = fmt.Fprintf(outFile, "%s;%s\n", path, field)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
