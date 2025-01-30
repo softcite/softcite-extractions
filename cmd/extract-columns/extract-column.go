@@ -334,7 +334,12 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 	if err != nil {
 		return fmt.Errorf("creating has mentions file: %w", err)
 	}
-	defer hasMentionsFile.Close()
+	defer func() {
+		err := hasMentionsFile.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
 
 	// Loop
 	i := 0
