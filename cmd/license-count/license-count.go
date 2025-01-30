@@ -9,7 +9,7 @@ import (
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 	"github.com/willbeason/software-mentions/pkg/papers"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"google.golang.org/protobuf/proto"
 	"io"
 	"log"
@@ -64,7 +64,7 @@ func runE(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: reading stats of %q: %w", ErrCountLicenses, inPath, err)
 	}
 
-	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return fmt.Errorf("%w: getting terminal size: %w", ErrCountLicenses, err)
 	}

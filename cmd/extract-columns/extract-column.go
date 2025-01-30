@@ -19,7 +19,7 @@ import (
 	"github.com/willbeason/bondsmith/jsonio"
 	"github.com/willbeason/bondsmith/statusbar"
 	"github.com/willbeason/software-mentions/pkg/tables"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"io"
 	"os"
 	"path/filepath"
@@ -70,7 +70,7 @@ func runE(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("creating gzip reader: %w", err)
 	}
 
-	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return fmt.Errorf("getting terminal size: %w", err)
 	}
@@ -505,12 +505,6 @@ func extractMentions(reader io.Reader, extractType, outDir string) error {
 	}
 
 	return nil
-}
-
-func panicIfEmptyString(s string) {
-	if s == "" {
-		panic("empty string")
-	}
 }
 
 type Paper struct {
