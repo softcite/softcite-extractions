@@ -24,7 +24,7 @@ var (
 )
 
 func main() {
-	cmd.Flags().String("mention-counts", "", "file to write mention counts to")
+	cmd.Flags().String("rm-processed", "", "directory to remove processed files from")
 
 	err := cmd.Execute()
 	if err != nil {
@@ -34,7 +34,7 @@ func main() {
 
 var cmd = cobra.Command{
 	Use:     "rm-processed IN",
-	Short:   "Remove already-processed JSON files",
+	Short:   "Remove JSON files that cmd/merge processes",
 	Args:    cobra.ExactArgs(1),
 	Version: "0.1.0",
 	RunE:    runE,
