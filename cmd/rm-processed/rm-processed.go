@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -59,7 +59,7 @@ func ProcessDir(inDir string) error {
 		return err
 	}
 
-	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return fmt.Errorf("%w: getting terminal size: %w", ErrRm, err)
 	}

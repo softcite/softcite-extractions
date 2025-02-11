@@ -58,7 +58,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	inDir := args[0]
 
 	//softwarePath := filepath.Join(inDir, tables.Software+tables.ParquetExt)
-	mentionsPath := filepath.Join(inDir, tables.Mentions+tables.ParquetExt)
+	mentionsPath := filepath.Join(inDir, tables.Software+tables.ParquetExt)
 
 	mentionsReader, err := file.OpenParquetFile(mentionsPath, true)
 	if err != nil {
