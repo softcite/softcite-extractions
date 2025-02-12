@@ -21,11 +21,28 @@ They do not contain all fields in the SoftCite dataset, but are a (hopefully use
 Much of the information below can be gleaned from the metadata field `comment`, which is present in every table and for every field.
 Where this documentation conflicts with what is in `comment`, trust what is in `comment`.
 
+Where field names are repeated between tables, they have identical meaning (e.g. "paper_id").
+
+Tables are mostly normalized, but with several technically-redundant precalculated fields (such as "published_year" from "published_date") which have been added for convenience.
+
 ### Papers
 
 This table contains paper metadata.
 Each entry represents a single paper analyzed by SoftCite.
 Many papers do not have any associated mentions - see the `has_mentions` field.
+
+- **paper_id** is a unique key for each paper, specific to this dataset.
+- **softcite_id** is the UUID for each paper in the original SoftCite dataset.
+- **title** is the title of the paper as parsed by SoftCite.
+- **published_year** is the year the paper was published, calculated from published_date.
+- **published_date** is the publication date of the paper as parsed by SoftCite.
+- **publication_venue** is the venue the paper was published in. This covers
+- **publisher_name** is the publisher of the paper's venue.
+- **doi** is the raw DOI of the paper (non-URL form).
+- **pmcid** is the PubMed Central identifier for the paper, if one exists.
+- **pmid** is the PubMed identifier of the paper, if one exists.
+- **genre** is the type of document the paper is, such as a journal article or a book. The full list of types is shown [below](#genres).
+- **license_Type*** is 
 
 ### Mentions
 
@@ -42,3 +59,45 @@ These purposes are not necessarily distinct: a mention could both indicate that 
 There are two possible mention scopes: "local" and "document".
 A "local" scope indicates the analysis was done specifically on the local context of the mention when determining its purpose.
 A "document" scope indicates that the analysis covered the entire document.
+
+### Appendix
+
+#### Genres
+
+For reference, these are the known values for the "genre" field:
+
+- "book"
+- "book-chapter"
+- "book-part"
+- "book-section"
+- "book-series"
+- "book-set"
+- "database"
+- "dataset"
+- "dissertation"
+- "edited-book"
+- "grant"
+- "journal"
+- "journal-article"
+- "journal-issue"
+- "journal-volume"
+- "monograph"
+- "other"
+- "peer-review"
+- "posted-content"
+- "proceedings"
+- "proceedings-article"
+- "proceedings-series"
+- "reference-book"
+- "reference-entry"
+- "report"
+- "report-component"
+- "report-series"
+- "standard"
+- NA (not present)
+
+#### Licenses
+
+For reference, these are the known value for the "license" field:
+
+TBD.
