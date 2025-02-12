@@ -514,12 +514,12 @@ type Paper struct {
 	PublishedYear int    `json:"year"`
 	PublishedDate string `json:"published_date"`
 	JournalName   string `json:"journal_name"`
-	PublisherName string `json:"publisher_name"`
+	PublisherName string `json:"publisher"`
 	DOI           string `json:"doi"`
 	PMCID         string `json:"pmcid"`
 	PMID          string `json:"pmid"`
 	Genre         string `json:"genre"`
-	LicenseType   string `json:"license_type"`
+	LicenseType   string `json:"license"`
 }
 
 const (
