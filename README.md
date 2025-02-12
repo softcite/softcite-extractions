@@ -8,9 +8,9 @@ detected in about 24,000,000 academic papers.
 
 ### The data model
 
-A _paper_ can contain many _mentions_, each of which is found in a full text snippet of _context_, and extracts the _software name_ (raw and normalized), the _version number_, a _url_, a _creator_.
+A __paper__ can contain many __mentions__, each of which was found in a full-text snippet of __context__, and extracts the (raw and normalized) __software name__ , __version number__, __creator__, __url__, as well as associated __citation__ to the reference list of the paper.
 
-Each _mention_ has multiple _purpose assessments_ about the relationship between the software and the paper: Was the software _used_ in the research?, Was it _created_ in the course of the research?, Was the software _shared_ alongside this paper? These probabilistic assessments are made in two ways: using only the information from the specific mention and using all the mentions within a single paper together (a document-level purpose assessment); thus each mention has six _purpose assessments_.
+Each __mention__ has multiple __purpose assessments__ about the relationship between the software and the paper: Was the software __used__ in the research?, Was it __created__ in the course of the research?, Was the software __shared__ alongside this paper? These probabilistic assessments (0..1 range) are made in two ways: using only the information from the specific mention and using all the mentions within a single paper together (mention-level vs document-level); thus each mention has six __purpose assessments__.
 
 ER diagram goes here.
 
