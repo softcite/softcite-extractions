@@ -113,11 +113,17 @@ To extract tables, run `extract-columns`, passing both the IN_DIR containing the
 To fully extract tables, you need to run the three commands in order. That the first and third command are identical is not a mistake. The full process will take approximately one hour and will use about 10GiB of memory while running.
 
 ```shell
-go run cmd/extract-columns/extract-columns.go papers IN_DIR OUT_DIR
-go run cmd/extract-columns/extract-columns.go pdf IN_DIR OUT_DIR
-go run cmd/extract-columns/extract-columns.go papers IN_DIR OUT_DIR
+IN_DIR=path/to/input
+OUT_DIR=path/to/output
+go run cmd/extract-columns/extract-columns.go papers "${IN_DIR}" "${OUT_DIR}"
+go run cmd/extract-columns/extract-columns.go pdf "${IN_DIR}" "${OUT_DIR}"
+go run cmd/extract-columns/extract-columns.go papers "${IN_DIR}" "${OUT_DIR}"
 ```
 
 The reason for this is a circular dependency between the datasets, which can only be resolved by iterating over at least one of the datasets twice:
 1. Papers has a "has_mentions" field, which requires knowledge from the Mentions table of whether any mentions exist for a paper.
 2. Mentions has a "paper_id" field, which is computed as part of extracting the Papers table.
+
+This process produces two incidental files, `paper_ids.csv` and `has_mentions.csv`.
+These files are produced deterministically by `extract-columns`, and so it is unnecessary to maintain them.
+Respectively, they contain a map from SoftCite UUID to paper_id and a list of SoftCite UUIDs which have at least one software mention.

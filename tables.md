@@ -106,4 +106,14 @@ For reference, these are the known values for the "genre" field:
 
 For reference, these are the known value for the "license" field:
 
-TBD.
+- "CC BY"
+- "CC BY-NC"
+- "CC BY-NC-ND"
+- "CC BY-NC-SA"
+- "CC BY-ND"
+- "CC BY-SA"
+- "cc-by"
+- "cc-by-nc-nd"
+- "CC0"
+- "NO-CC CODE"
+- NA (not present)
