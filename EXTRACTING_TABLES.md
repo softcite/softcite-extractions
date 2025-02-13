@@ -108,11 +108,16 @@ These are currently a work in progress.
 
 ### Extracting Tables
 
-To extract tables, run `extract-columns` on the directory containing the JSONL files.
+To extract tables, run `extract-columns`, passing both the IN_DIR containing the JSONL files and the out directory to write tables to.
+
+To fully extract tables, you need to run the three commands in order. That the first and third command are identical is not a mistake. The full process will take approximately one hour and will use about 10GiB of memory while running.
 
 ```shell
-go run cmd/extract-columns/extract-columns.go [papers|software] IN_DIR OUT_DIR
+go run cmd/extract-columns/extract-columns.go papers IN_DIR OUT_DIR
+go run cmd/extract-columns/extract-columns.go pdf IN_DIR OUT_DIR
+go run cmd/extract-columns/extract-columns.go papers IN_DIR OUT_DIR
 ```
 
-For now there are only two tables, `papers` and `software`.
-You may define new Parquet table definitions that extract information from the JSONL files, but you must insert the reference in extract-columns.go to use them.
+The reason for this is a circular dependency between the datasets, which can only be resolved by iterating over at least one of the datasets twice:
+1. Papers has a "has_mentions" field, which requires knowledge from the Mentions table of whether any mentions exist for a paper.
+2. Mentions has a "paper_id" field, which is computed as part of extracting the Papers table.
