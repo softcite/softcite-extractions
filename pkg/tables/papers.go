@@ -43,16 +43,16 @@ var Papers = arrow.NewSchema([]arrow.Field{
 		).Build(),
 		Nullable: true,
 	},
-	{Name: "journal_name",
+	{Name: "publication_venue",
 		Type: arrow.BinaryTypes.String,
 		Metadata: NewMetadataBuilder().Add(
-			comment, "The parsed journal the paper was published in",
+			comment, "The parsed venue the paper was published in",
 		).Build(),
 	},
 	{Name: "publisher_name",
 		Type: arrow.BinaryTypes.String,
 		Metadata: NewMetadataBuilder().Add(
-			comment, "The parsed publisher of the paper's journal",
+			comment, "The parsed publisher of the paper's venue",
 		).Build(),
 		Nullable: true,
 	},
@@ -72,7 +72,7 @@ var Papers = arrow.NewSchema([]arrow.Field{
 	{Name: "pmid",
 		Type: arrow.BinaryTypes.String,
 		Metadata: NewMetadataBuilder().Add(
-			comment, "The PubMed Identifier of the paper",
+			comment, "The PubMed identifier of the paper",
 		).Build(),
 		Nullable: true,
 	},
@@ -82,6 +82,9 @@ var Papers = arrow.NewSchema([]arrow.Field{
 			ValueType: arrow.BinaryTypes.String,
 			Ordered:   false,
 		},
+		Metadata: NewMetadataBuilder().Add(
+			comment, "The type of document the paper is, such as a journal article or a book",
+		).Build(),
 		Nullable: true,
 	},
 	{Name: "license_type",

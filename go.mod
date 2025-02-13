@@ -1,6 +1,6 @@
 module github.com/willbeason/software-mentions
 
-go 1.23.1
+go 1.24
 
 require (
 	github.com/VividCortex/ewma v1.2.0
