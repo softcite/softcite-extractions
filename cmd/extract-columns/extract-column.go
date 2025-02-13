@@ -106,6 +106,8 @@ func runE(_ *cobra.Command, args []string) error {
 	}
 }
 
+// The "gg" here is for a special file for two papers which were missing metadata
+// in the original SoftCite dataset.
 var (
 	paperPattern   = regexp.MustCompile(`([0-9a-f]{2}|gg)\.jsonl.gz`)
 	pdfPattern     = regexp.MustCompile(`[0-9a-f]{2}\.software\.jsonl\.gz`)
