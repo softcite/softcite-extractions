@@ -12,7 +12,7 @@ A __paper__ can contain many __mentions__, each of which was found in a full-tex
 
 Each __mention__ has multiple __purpose assessments__ about the relationship between the software and the paper: Was the software __used__ in the research?, Was it __created__ in the course of the research?, Was the software __shared__ alongside this paper? These probabilistic assessments (0..1 range) are made in two ways: using only the information from the specific mention and using all the mentions within a single paper together (mention-level vs document-level); thus each mention has six __purpose assessments__.
 
-ER diagram goes here.
+<img src="class-diagram.png" alt="drawing" width="300"/>
 
 ## Getting Started
 
