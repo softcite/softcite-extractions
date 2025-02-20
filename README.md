@@ -1,10 +1,11 @@
-# software-mentions-dataset-analysis
+# Softcite Extractions from Open Access Literature
+
 Analyses of software mentions and dependencies
 
 ## What this dataset is
 
-The software-mentions dataset is a collection of ML-identified mentions of software
-detected in about 24,000,000 academic papers.
+The softcite-extractions dataset is a collection of ML-identified mentions of software
+detected in about 24,000,000 academic papers, created using the Softcite Grobid model, which was trained on the Softcite Annotations dataset v2.  See https://github.com/softcite/ for details and papers.
 
 ### The data model
 
