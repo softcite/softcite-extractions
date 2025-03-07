@@ -1,6 +1,8 @@
 # Softcite Extractions from Open Access Literature
 
-The softcite-extractions dataset is a collection of ML-identified mentions of software detected in about 24 million academic papers. The papers are all open access papers available circa 2024. The extractions were created from academic PDFs using the Softcite Grobid model and pipeline, which was trained on the Softcite Annotations dataset v2.  See https://github.com/softcite/ for details and papers.
+The softcite-extractions-oa dataset is a collection of ML-identified mentions of software detected in about 24 million academic papers. The papers are all open access papers available circa 2024. The extractions were created from academic PDFs using the [Softcite mention extraction toolchain](https://github.com/softcite#mention-extraction-tool-chain), which is built on the [Grobid](https://github.com/kermitt2/grobid) model trained on the [Softcite Annotations dataset v2](https://github.com/softcite/softcite_dataset_v2).  More details available at the [Softcite Org home page](https://github.com/softcite/). 
+
+This work used JetStream 2 at Indiana through allocation CIS220172 from the Advanced Cyberinfrastructure Coordination Ecosystem: Services & Support (ACCESS) program, which is supported by National Science Foundation grants #2138259, #2138286, #2138307, #2137603, and #2138296.
 
 ## The data model
 
