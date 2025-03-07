@@ -1,13 +1,8 @@
 # Softcite Extractions from Open Access Literature
 
-Analyses of software mentions and dependencies
+The softcite-extractions dataset is a collection of ML-identified mentions of software detected in about 24 million academic papers. The papers are all open access papers available circa 2024. The extractions were created from academic PDFs using the Softcite Grobid model and pipeline, which was trained on the Softcite Annotations dataset v2.  See https://github.com/softcite/ for details and papers.
 
-## What this dataset is
-
-The softcite-extractions dataset is a collection of ML-identified mentions of software
-detected in about 24,000,000 academic papers, created using the Softcite Grobid model, which was trained on the Softcite Annotations dataset v2.  See https://github.com/softcite/ for details and papers.
-
-### The data model
+## The data model
 
 A __paper__ can contain many __mentions__, each of which was found in a full-text snippet of __context__, and extracts the (raw and normalized) __software name__ , __version number__, __creator__, __url__, as well as associated __citation__ to the reference list of the paper.
 
@@ -19,9 +14,21 @@ Each __mention__ has multiple __purpose assessments__ about the relationship bet
 
 ### Getting the Parquet files
 
-If you want to extract the .parquet tables yourself, or work with the original dataset, see [Extracting Tables](EXTRACTING_TABLES.md).
-Otherwise, you can download the tables in a friendlier format from (INSERT LOCATION).
+Parquet files are available from Zenodo.  There are three sub-folders:
 
+```
+full_dataset
+p01_one_percent_random_subset
+p05_five_percent_random_subset
+```
+
+The random subsets are subsets of papers, with all of the extractions in those papers. We created these to make prototyping analyses easier.  Inside each folder are three files:
+
+```
+papers.parquet
+mentions.pdf.parquet
+purpose_assessments.pdf.parquet
+```
 ### Example Analyses
 
 For these examples, the 5% subset of the data is used.
@@ -32,7 +39,7 @@ These examples require the `tidyverse` and `arrow` packages to run, but should o
 This example filters by `software_normalied` as this is less noisy than `software_raw`.
 
 ```R
-> mentions <- open_dataset("/home/willbeason/Downloads/mentions.pdf_1.parquet")
+> mentions <- open_dataset("p05_five_percent_random_subset/mentions.pdf.parquet")
 > mentions |>
 +   filter(software_normalized == "OpenStreetMap") |>
 +   select(paper_id) |>
@@ -50,8 +57,8 @@ This example filters by `software_normalied` as this is less noisy than `softwar
 By joining the Mentions table with Papers, we can compute statistics requiring access to paper metadata. Analyses like these are why we include fields such as `paper_id` in Mentions, even though it denormalizes the tables.
 
 ```R
-> papers <- open_dataset("/home/willbeason/Downloads/papers_1.parquet")
-> mentions <- open_dataset("/home/willbeason/Downloads/mentions.pdf_1.parquet")
+> papers <- open_dataset("p05_five_percent_random_subset/papers.parquet")
+> mentions <- open_dataset("p05_five_percent_random_subset/mentions.pdf.parquet")
 > 
 > mentions |>
 +   filter(software_normalized == "STATA") |>
@@ -87,9 +94,9 @@ Here we use the PurposeAssessments table to evaluate whether software was "used"
 The "document" scope is appropriate here as we're interested in whether the software was used by the paper, not whether particular mentions of the software indicate this.
 
 ```R
-> papers <- open_dataset("/home/willbeason/Downloads/papers_1.parquet")
-> mentions <- open_dataset("/home/willbeason/Downloads/mentions.pdf_1.parquet")
-> purposes <- open_dataset("/home/willbeason/Downloads/purpose_assessments.pdf_1.parquet")
+> papers <- open_dataset("p05_five_percent_random_subset/papers.parquet")
+> mentions <- open_dataset("p05_five_percent_random_subset/mentions.pdf.parquet")
+> purposes <- open_dataset("p05_five_percent_random_subset/purpose_assessments.pdf.parquet")
 > 
 > papers |>
 +   filter(published_year >= 2020) |>
@@ -119,3 +126,10 @@ The "document" scope is appropriate here as we're interested in whether the soft
 # ℹ 79,720 more rows
 # ℹ Use `print(n = ...)` to see more rows
 ```
+## Additional details and provenance
+
+The Grobid extraction pipeline worked with multiple sources for each paper, including PDFs and xml sources from publishers, such as JATS and TEI XML.  This produced json files, which were then processed to tabular formats in parquet. 
+
+The tablular dataset includes only extractions from PDF sources, to avoid complexity of multiple source types for a single paper. This decision was made easier based on the reality that PDF was available for all papers, but other papers sources were only available for smaller subsets.  
+
+Details of the full json data, from all source document types, and the way those were read and mapped to tabular data are available in [Extracting Tables](EXTRACTING_TABLES.md).
